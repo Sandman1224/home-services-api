@@ -6,6 +6,7 @@ import { EmployeesModule } from './employees/employees.module';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Invoice } from './house-services/entities/invoice.entity';
+import { InvoiceAdditionals } from './house-services/entities/additionals.entity';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { Invoice } from './house-services/entities/invoice.entity';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [Invoice],
+      entities: [Invoice, InvoiceAdditionals],
       synchronize: true,
     }),
   ],

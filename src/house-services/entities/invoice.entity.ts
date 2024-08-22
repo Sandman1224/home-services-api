@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { InvoiceAdditionals } from './additionals.entity';
 
 @Entity({ name: 'employment-invoices' })
 export class Invoice {
@@ -33,4 +34,10 @@ export class Invoice {
     nullable: true,
   })
   extraHours: number;
+
+  @Column()
+  status: number;
+
+  @OneToMany(() => InvoiceAdditionals, (additional) => additional.invoiceId)
+  additionals: InvoiceAdditionals[];
 }

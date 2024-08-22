@@ -1,115 +1,65 @@
 import { Test } from '@nestjs/testing';
 import { HouseServicesService } from './house-services.service';
 import { EmployeesService } from '../employees/employees.service';
-import { BadRequestException } from '@nestjs/common';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import { Invoice } from './entities/invoice.entity';
+import { Repository } from 'typeorm';
 
-describe('HouseServicesService', () => {
+describe('houseService', () => {
   let houseService: HouseServicesService;
+  let invoiceRepository = Repository<Invoice>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [HouseServicesService, EmployeesService],
+      imports: [
+        TypeOrmModule.forRoot({
+          type: 'mysql',
+          host: 'services_default',
+          port: 3306,
+          username: 'root',
+          password: 'mg751224',
+          database: 'home_services',
+          entities: [Invoice],
+          synchronize: true,
+        }),
+        TypeOrmModule.forFeature([Invoice]),
+      ],
     }).compile();
 
     houseService = moduleRef.get<HouseServicesService>(HouseServicesService);
+    invoiceRepository = moduleRef.get('InvoiceRepository');
   });
 
-  describe('Correct month invoice calculation', () => {
-    it('should return singular employee data', async () => {
-      const params = {
-        employeeId: '12345',
-        costPerRegularHour: 2000,
-        regularHoursMonth: 40,
-      };
-
-      expect(await houseService.calculateMonthInvoice(params)).toEqual({
-        employeeId: '12345',
-        employeeName: 'Yanet',
-        basicSalary: 80000,
-        seniorityAmount: 4800,
-      });
-    });
-
-    it('Incorrect month invoice calculation', async () => {
-      const params = {
-        employeeId: '12345',
-        costPerRegularHour: -2000,
-        regularHoursMonth: 40,
-        basicSalary: 80000,
-      };
-
-      try {
-        await houseService.calculateMonthInvoice(params);
-      } catch (error) {
-        expect(error).toBeInstanceOf(BadRequestException);
-      }
-    });
-
-    it('Calculate basic salary', () => {
-      const costPerRegularHour = 40;
-      const regularHoursMonth = 2000;
-
+  describe('Data validation', () => {
+    it('Date selected is bigger than actual date', () => {
       expect(
-        houseService.calculateBasicSalary(
-          regularHoursMonth,
-          costPerRegularHour,
-        ),
-      ).toBe(80000);
+        houseService.validateInvoiceDate({
+          year: 2024,
+          month: 8,
+        }),
+      ).toBeFalsy();
     });
 
-    it('Calculate negative basic salary', () => {
-      const costPerRegularHour = -2;
-      const regularHoursMonth = 4;
-
+    it('Date selected is minor than actual date', () => {
       expect(
-        houseService.calculateBasicSalary(
-          regularHoursMonth,
-          costPerRegularHour,
-        ),
-      ).toBeNull();
+        houseService.validateInvoiceDate({
+          year: 2024,
+          month: 4,
+        }),
+      ).toBe(true);
     });
 
-    it('Calculate seniority amount when work date start is bigger than actual date', () => {
-      const startDateAtService = new Date('2025-04-01');
-      const basicSalary = 250000;
-
-      expect(
-        houseService.calculateSeniorityAmount(basicSalary, startDateAtService),
-      ).toBeNull();
+    it('Invoice exists on year and month selected for specified employee id', async () => {
+      expect(await houseService.isMonthInvoiceExists('12345', 1, 2024)).toBe(
+        true,
+      );
     });
 
-    it('Calculate seniority mount', () => {
-      const startDateAtService = new Date('2024-06-09');
-      const basicSalary = 250000;
-
-      expect(
-        houseService.calculateSeniorityAmount(basicSalary, startDateAtService),
-      ).toBe(0);
-    });
-
-    it('Calculate additional concepts when additional concepts array is empty', () => {
-      const additionalConcepts = [];
-
-      expect(
-        houseService.calculateAdditionalConceptsAmount(additionalConcepts),
-      ).toBe(0);
-    });
-
-    it('calculate additional concepts when array has valid values', () => {
-      const additionalConcepts = [
-        {
-          concept: 'viaticos',
-          amount: 3000,
-        },
-        {
-          concept: 'gratificaciones',
-          amount: 2000,
-        },
-      ];
-
-      expect(
-        houseService.calculateAdditionalConceptsAmount(additionalConcepts),
-      ).toBe(5000);
+    it('Invoice does not exists for an employee id in month and year specified', async () => {
+      expect(await houseService.isMonthInvoiceExists('12345', 1, 2025)).toBe(
+        false,
+      );
     });
   });
 });

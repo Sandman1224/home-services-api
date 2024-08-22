@@ -7,10 +7,18 @@ import {
 } from 'class-validator';
 import { AdditionalConcepts } from '../interfaces/additional-concepts';
 
-export class MonthInvoice {
+export class MonthInvoiceDto {
   @IsString()
   @MinLength(1)
   employeeId: string;
+
+  @IsNumber()
+  @IsPositive()
+  month: number;
+
+  @IsNumber()
+  @IsPositive()
+  year: number;
 
   @IsNumber()
   @IsPositive()
