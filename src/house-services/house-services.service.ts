@@ -26,6 +26,60 @@ export class HouseServicesService {
     private readonly invoiceAdditionalsRepository: Repository<InvoiceAdditionals>,
   ) {}
 
+  async getInvoiceById(invoiceId) {
+    // 1- Find month invoice
+    const invoiceData = await this.invoiceRepository.findOneBy({
+      id: invoiceId,
+    });
+
+    if (!invoiceData)
+      throw new NotFoundException(`Invoice with id: ${invoiceId} not found`);
+
+    // 1- Find employee
+    const employeeData = await this.employeesService.findOne(
+      invoiceData.employeeId,
+    );
+    if (!employeeData)
+      throw new NotFoundException(
+        `Required employee with id ${invoiceData.employeeId} does not exists`,
+      );
+
+    // 2- Calculate basic salary
+    const basicSalary = this.calculateBasicSalary(
+      invoiceData.regularHoursMonth,
+      invoiceData.costPerRegularHour,
+    );
+    if (!basicSalary)
+      throw new BadRequestException(
+        `Basic salary calculate is wrong. Some parameters could be bad initializated`,
+      );
+
+    // 3- Calculate antiquity
+    const startWorkDate = new Date(employeeData.startDate);
+    const seniorityPlus = this.calculateSeniorityAmount(
+      basicSalary,
+      startWorkDate,
+    );
+    if (seniorityPlus === null)
+      throw new BadRequestException(
+        `Seniority amount calculation is wrong. Work day start of employee could be wrong`,
+      );
+
+    // 4- Plus additionals concepts
+    let additionalsAmount = 0;
+    if (invoiceData.additionals && invoiceData.additionals.length > 0) {
+      additionalsAmount = this.calculateAdditionalConceptsAmount(
+        invoiceData.additionals,
+      );
+    }
+
+    return {
+      basicSalary,
+      seniorityPlus,
+      additionalsAmount,
+    };
+  }
+
   async calculateMonthInvoice(employeeDataParams: any): Promise<any> {
     const { employeeId, costPerRegularHour, regularHoursMonth, additionals } =
       employeeDataParams;
@@ -189,18 +243,6 @@ export class HouseServicesService {
         status: 1,
       });
       await this.invoiceRepository.save(invoiceDb);
-
-      if (Array.isArray(invoiceData.additionals)) {
-        // TODO: Ver si se puede hacer la inserción en volcado o bulk
-        invoiceData.additionals.forEach(async (additionalData) => {
-          const additional = new InvoiceAdditionals();
-          additional.concept = additionalData.concept;
-          additional.amount = additionalData.amount;
-          additional.invoiceId = invoiceDb;
-
-          await this.invoiceAdditionalsRepository.save(additional);
-        });
-      }
 
       return {
         ...invoiceDb,

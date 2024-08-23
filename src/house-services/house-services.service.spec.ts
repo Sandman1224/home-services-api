@@ -4,6 +4,12 @@ import { EmployeesService } from '../employees/employees.service';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Invoice } from './entities/invoice.entity';
 import { Repository } from 'typeorm';
+import { InvoiceAdditionals } from './entities/additionals.entity';
+import {
+  BadRequestException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('houseService', () => {
   let houseService: HouseServicesService;
@@ -20,10 +26,10 @@ describe('houseService', () => {
           username: 'root',
           password: 'mg751224',
           database: 'home_services',
-          entities: [Invoice],
+          entities: [Invoice, InvoiceAdditionals],
           synchronize: true,
         }),
-        TypeOrmModule.forFeature([Invoice]),
+        TypeOrmModule.forFeature([Invoice, InvoiceAdditionals]),
       ],
     }).compile();
 
@@ -51,7 +57,7 @@ describe('houseService', () => {
     });
 
     it('Invoice exists on year and month selected for specified employee id', async () => {
-      expect(await houseService.isMonthInvoiceExists('12345', 1, 2024)).toBe(
+      expect(await houseService.isMonthInvoiceExists('12345', 2, 2023)).toBe(
         true,
       );
     });
@@ -60,6 +66,14 @@ describe('houseService', () => {
       expect(await houseService.isMonthInvoiceExists('12345', 1, 2025)).toBe(
         false,
       );
+    });
+  });
+
+  describe('Getting one invoice', () => {
+    it('Not found invoice by their id', async () => {
+      await expect(
+        houseService.getInvoiceById('2b3e6cb7-6b34-404d-b5d7-676ec3469bcd'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });
