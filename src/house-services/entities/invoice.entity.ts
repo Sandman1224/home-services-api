@@ -38,6 +38,9 @@ export class Invoice {
   @Column()
   status: number;
 
-  @OneToMany(() => InvoiceAdditionals, (additional) => additional.invoiceId)
-  additionals: InvoiceAdditionals[];
+  @OneToMany(() => InvoiceAdditionals, (additional) => additional.invoiceId, {
+    cascade: true,
+    eager: true,
+  })
+  additionals?: InvoiceAdditionals[];
 }
