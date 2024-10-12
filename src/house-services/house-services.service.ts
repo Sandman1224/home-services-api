@@ -73,10 +73,15 @@ export class HouseServicesService {
       );
     }
 
+    const regularHoursMonth = invoiceData.regularHoursMonth;
+    const monthInvoice = invoiceData.month;
+
     return {
       basicSalary,
       seniorityPlus,
       additionalsAmount,
+      regularHoursMonth,
+      monthInvoice,
     };
   }
 
