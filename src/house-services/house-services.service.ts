@@ -13,6 +13,7 @@ import { Invoice } from './entities/invoice.entity';
 import { Repository } from 'typeorm';
 import { MonthInvoiceDto } from './dto/month-invoice.dto';
 import { InvoiceAdditionals } from './entities/additionals.entity';
+import { PaginationDto } from 'src/house-services/dto/pagination.dto';
 
 @Injectable()
 export class HouseServicesService {
@@ -25,6 +26,26 @@ export class HouseServicesService {
     @InjectRepository(InvoiceAdditionals)
     private readonly invoiceAdditionalsRepository: Repository<InvoiceAdditionals>,
   ) {}
+
+  async findInvoicesByYear(paginationDto: PaginationDto) {
+    const { limit = 20, offset = 0, year } = paginationDto;
+    const ACTIVE_STATUS = 1;
+
+    const [data, total] = await this.invoiceRepository.findAndCount({
+      where: {
+        year,
+        status: ACTIVE_STATUS,
+      },
+      take: limit,
+      skip: offset,
+    });
+
+    return {
+      data,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 
   async getInvoiceById(invoiceId) {
     // 1- Find month invoice
