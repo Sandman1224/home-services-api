@@ -1,19 +1,13 @@
 import { Test } from '@nestjs/testing';
 import { HouseServicesService } from './house-services.service';
 import { EmployeesService } from '../employees/employees.service';
-import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { Invoice } from './entities/invoice.entity';
-import { Repository } from 'typeorm';
 import { InvoiceAdditionals } from './entities/additionals.entity';
-import {
-  BadRequestException,
-  HttpException,
-  NotFoundException,
-} from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 
 describe('houseService', () => {
   let houseService: HouseServicesService;
-  let invoiceRepository = Repository<Invoice>;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -34,7 +28,6 @@ describe('houseService', () => {
     }).compile();
 
     houseService = moduleRef.get<HouseServicesService>(HouseServicesService);
-    invoiceRepository = moduleRef.get('InvoiceRepository');
   });
 
   describe('Data validation', () => {
@@ -74,6 +67,30 @@ describe('houseService', () => {
       await expect(
         houseService.getInvoiceById('2b3e6cb7-6b34-404d-b5d7-676ec3469bcd'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('Getting many invoices (with pagination)', () => {
+    it('Not found month invoices', async () => {
+      expect(
+        await houseService.findInvoicesByYear({
+          employeeId: '123',
+          limit: 20,
+          offset: 0,
+          year: 2026,
+        }),
+      ).toStrictEqual([]);
+    });
+
+    it('Getting 2023 month invoices', async () => {
+      expect(
+        await houseService.findInvoicesByYear({
+          employeeId: '12345',
+          limit: 20,
+          offset: 0,
+          year: 2023,
+        }),
+      ).toBeTruthy();
     });
   });
 });
