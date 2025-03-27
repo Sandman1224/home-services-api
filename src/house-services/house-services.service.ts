@@ -48,7 +48,6 @@ export class HouseServicesService {
   }
 
   async getInvoiceById(invoiceId) {
-    // 1- Find month invoice
     const invoiceData = await this.invoiceRepository.findOneBy({
       id: invoiceId,
     });
@@ -56,54 +55,7 @@ export class HouseServicesService {
     if (!invoiceData)
       throw new NotFoundException(`Invoice with id: ${invoiceId} not found`);
 
-    // 1- Find employee
-    const employeeData = await this.employeesService.findOne(
-      invoiceData.employeeId,
-    );
-    if (!employeeData)
-      throw new NotFoundException(
-        `Required employee with id ${invoiceData.employeeId} does not exists`,
-      );
-
-    // 2- Calculate basic salary
-    const basicSalary = this.calculateBasicSalary(
-      invoiceData.regularHoursMonth,
-      invoiceData.costPerRegularHour,
-    );
-    if (!basicSalary)
-      throw new BadRequestException(
-        `Basic salary calculate is wrong. Some parameters could be bad initializated`,
-      );
-
-    // 3- Calculate antiquity
-    const startWorkDate = new Date(employeeData.startDate);
-    const seniorityPlus = this.calculateSeniorityAmount(
-      basicSalary,
-      startWorkDate,
-    );
-    if (seniorityPlus === null)
-      throw new BadRequestException(
-        `Seniority amount calculation is wrong. Work day start of employee could be wrong`,
-      );
-
-    // 4- Plus additionals concepts
-    let additionalsAmount = 0;
-    if (invoiceData.additionals && invoiceData.additionals.length > 0) {
-      additionalsAmount = this.calculateAdditionalConceptsAmount(
-        invoiceData.additionals,
-      );
-    }
-
-    const regularHoursMonth = invoiceData.regularHoursMonth;
-    const monthInvoice = invoiceData.month;
-
-    return {
-      basicSalary,
-      seniorityPlus,
-      additionalsAmount,
-      regularHoursMonth,
-      monthInvoice,
-    };
+    return invoiceData;
   }
 
   async calculateMonthInvoice(employeeDataParams: any): Promise<any> {
