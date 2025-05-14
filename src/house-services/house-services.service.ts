@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EmployeesService } from '../employees/employees.service';
-import { MonthInvoice } from './interfaces/month-invoice';
+import { InvoiceQueryParams, MonthInvoice } from './interfaces/month-invoice';
 import { AdditionalConcepts } from './interfaces/additional-concepts';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Invoice } from './entities/invoice.entity';
@@ -14,10 +14,13 @@ import { Repository } from 'typeorm';
 import { MonthInvoiceDto } from './dto/month-invoice.dto';
 import { InvoiceAdditionals } from './entities/additionals.entity';
 import { PaginationDto } from 'src/house-services/dto/pagination.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
+import { ValidationUpdateError } from './interfaces/validations';
 
 @Injectable()
 export class HouseServicesService {
   private readonly logger = new Logger('InvoiceService');
+  private readonly ACTIVE_STATUS = 1;
 
   constructor(
     private readonly employeesService: EmployeesService,
@@ -47,15 +50,23 @@ export class HouseServicesService {
     };
   }
 
-  async getInvoiceById(invoiceId) {
+  async getInvoiceById(invoiceId: string): Promise<Invoice> {
     const invoiceData = await this.invoiceRepository.findOneBy({
       id: invoiceId,
+      status: this.ACTIVE_STATUS,
     });
 
     if (!invoiceData)
       throw new NotFoundException(`Invoice with id: ${invoiceId} not found`);
 
     return invoiceData;
+  }
+
+  async findInvoiceById(invoiceId: string): Promise<Invoice> {
+    return await this.invoiceRepository.findOneBy({
+      id: invoiceId,
+      status: this.ACTIVE_STATUS,
+    });
   }
 
   async calculateMonthInvoice(employeeDataParams: any): Promise<any> {
@@ -164,7 +175,7 @@ export class HouseServicesService {
       );
 
     // 3- Validate - Month invoice only exists once in a month and year
-    const monthDeviceExists = await this.isMonthInvoiceExists(
+    const monthDeviceExists = await this.hasInvoiceForEmployeeInMonthAndYear(
       employeeId,
       month,
       year,
@@ -193,21 +204,19 @@ export class HouseServicesService {
     return true;
   }
 
-  async isMonthInvoiceExists(
+  async hasInvoiceForEmployeeInMonthAndYear(
     employeeId: string,
     month: number,
     year: number,
   ): Promise<boolean> {
-    const queryParams = {
+    const queryParams: InvoiceQueryParams = {
       employeeId,
       month,
       year,
-      status: 1,
+      status: this.ACTIVE_STATUS,
     };
-    const monthInvoiceDbQuery = await this.findMonthInvoices(queryParams);
-    if (monthInvoiceDbQuery.length > 0) return true;
 
-    return false;
+    return (await this.findMonthInvoices(queryParams)).length > 0;
   }
 
   async findMonthInvoices(query): Promise<Invoice[]> {
@@ -228,6 +237,123 @@ export class HouseServicesService {
     } catch (error) {
       this.handleDbExceptions(error);
     }
+  }
+
+  async updateInvoiceById(invoiceId: string, updatedData: UpdateInvoiceDto) {
+    // 1- Buscar los datos del recibo
+    const invoiceStored = await this.findInvoiceById(invoiceId);
+    const existsInvoiceStored = !!invoiceStored;
+    if (!existsInvoiceStored) {
+      throw new NotFoundException(
+        `Invoice with id "${invoiceId}" could not be found`,
+      );
+    }
+
+    // 2- Validar datos
+    const processErrors = await this.validateUpdateProcess(
+      updatedData,
+      invoiceStored,
+    );
+    const processHasErrors = processErrors.length > 0;
+    if (processHasErrors) {
+      throw new BadRequestException(processErrors);
+    }
+
+    // 2- Actualizar los datos
+    return await this.updateInvoiceData(invoiceStored, updatedData);
+  }
+
+  async validateUpdateProcess(
+    dataToUpdate: UpdateInvoiceDto,
+    invoiceStored: Invoice,
+  ): Promise<ValidationUpdateError[]> {
+    const errors = [];
+
+    if (!this.isValidInvoiceDate(dataToUpdate.year, dataToUpdate.month)) {
+      errors.push({ key: 'invalid_date', message: 'Invalid date supplied' });
+    }
+
+    const isTheSameInvoiceOfAnEmployee =
+      invoiceStored.employeeId === dataToUpdate.employeeId &&
+      invoiceStored.month === dataToUpdate.month &&
+      invoiceStored.year === dataToUpdate.year;
+    if (
+      !isTheSameInvoiceOfAnEmployee &&
+      (await this.hasInvoiceForEmployeeInMonthAndYear(
+        dataToUpdate.employeeId,
+        dataToUpdate.month,
+        dataToUpdate.year,
+      ))
+    ) {
+      errors.push({
+        key: 'invoice_exists_in_days',
+        message: 'Invoice exists in specified date',
+      });
+    }
+
+    return errors;
+  }
+
+  async updateInvoiceData(
+    invoiceStored: Invoice,
+    dataUpdated: UpdateInvoiceDto,
+  ) {
+    const areConceptsToUpdate = !!dataUpdated.additionals;
+
+    // 1- Deprecamos conceptos adicionales viejos si los hay
+    if (areConceptsToUpdate) {
+      await this.updateInvoiceAdditionals(invoiceStored, dataUpdated);
+    }
+
+    // 3- Actualizamos los datos del recibo
+    Object.assign(invoiceStored, dataUpdated);
+    delete invoiceStored.additionals;
+
+    return await this.invoiceRepository.save(invoiceStored);
+  }
+
+  private async updateInvoiceAdditionals(
+    invoiceStored: Invoice,
+    dataUpdated: UpdateInvoiceDto,
+  ) {
+    const invoiceHasConceptsStored =
+      invoiceStored.additionals && invoiceStored.additionals.length > 0;
+
+    if (invoiceHasConceptsStored) {
+      await this.deleteAdditionalsConceptsOfAnInvoice(
+        invoiceStored.additionals,
+      );
+    }
+
+    const newConcepts = dataUpdated.additionals.map((concept) =>
+      this.invoiceAdditionalsRepository.create({
+        ...concept,
+        status: this.ACTIVE_STATUS,
+        invoice: invoiceStored,
+      }),
+    );
+    await this.invoiceAdditionalsRepository.save(newConcepts);
+  }
+
+  isValidInvoiceDate(invoiceYear, invoiceMonth) {
+    const actualDate = new Date();
+    const actualMonth = actualDate.getMonth();
+    const actualYear = actualDate.getFullYear();
+
+    if (invoiceYear > actualYear) return false;
+
+    return !(invoiceYear === actualYear && invoiceMonth > actualMonth);
+  }
+
+  async deleteAdditionalsConceptsOfAnInvoice(
+    additionalsConcepts: InvoiceAdditionals[],
+  ): Promise<void> {
+    const entitiesToUpdate = additionalsConcepts.map((concept) => ({
+      ...concept,
+      status: 0,
+    }));
+
+    await this.invoiceAdditionalsRepository.save(entitiesToUpdate);
   }
 
   private handleDbExceptions(error: any) {

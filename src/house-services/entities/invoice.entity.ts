@@ -38,7 +38,7 @@ export class Invoice {
   @Column()
   status: number;
 
-  @OneToMany(() => InvoiceAdditionals, (additional) => additional.invoiceId, {
+  @OneToMany(() => InvoiceAdditionals, (additional) => additional.invoice, {
     cascade: true,
     eager: true,
   })
