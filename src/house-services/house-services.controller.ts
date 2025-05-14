@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { MonthInvoiceDto } from './dto/month-invoice.dto';
 import { HouseServicesService } from './house-services.service';
 import { PaginationDto } from 'src/house-services/dto/pagination.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 
 @Controller('house-services')
 export class HouseServicesController {
@@ -20,5 +29,13 @@ export class HouseServicesController {
   @Post()
   getEmployeeMonthInvoice(@Body() monthInvoiceData: MonthInvoiceDto) {
     return this.houseServicesService.createMonthInvoice(monthInvoiceData);
+  }
+
+  @Patch(':id')
+  updateInvoiceById(
+    @Param('id') id: string,
+    @Body() updatedData: UpdateInvoiceDto,
+  ) {
+    return this.houseServicesService.updateInvoiceById(id, updatedData);
   }
 }

@@ -5,3 +5,10 @@ export interface MonthInvoice {
   seniorityAmount?: number;
   additionals?: number;
 }
+
+export interface InvoiceQueryParams {
+  employeeId: string;
+  month: number;
+  year: number;
+  status: number;
+}
