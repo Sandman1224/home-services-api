@@ -305,7 +305,7 @@ export class HouseServicesService {
     invoiceStored: Invoice,
     dataUpdated: UpdateInvoiceDto,
   ) {
-    const areConceptsToUpdate = !!dataUpdated.additionals;
+    const areConceptsToUpdate = Array.isArray(dataUpdated.additionals);
 
     // 1- Deprecamos conceptos adicionales viejos si los hay
     if (areConceptsToUpdate) {
