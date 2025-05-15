@@ -51,10 +51,17 @@ export class HouseServicesService {
   }
 
   async getInvoiceById(invoiceId: string): Promise<Invoice> {
-    const invoiceData = await this.invoiceRepository.findOneBy({
-      id: invoiceId,
-      status: this.ACTIVE_STATUS,
-    });
+    const invoiceData = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .leftJoinAndSelect(
+        'invoice.additionals',
+        'additionals',
+        'additionals.status = :status',
+        { status: this.ACTIVE_STATUS },
+      )
+      .where('invoice.id = :id', { id: invoiceId })
+      .andWhere('invoice.status = :status', { status: this.ACTIVE_STATUS })
+      .getOne();
 
     if (!invoiceData)
       throw new NotFoundException(`Invoice with id: ${invoiceId} not found`);
