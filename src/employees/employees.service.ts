@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 export type Employee = any;
 
@@ -30,5 +30,17 @@ export class EmployeesService {
     return this.employees.filter(
       (employee) => employee.status === this.ACTIVE_STATUS,
     );
+  }
+
+  async getEmployeeById(employeeId: string) {
+    const employee: Employee = await this.findOne(employeeId);
+
+    if (!employee) {
+      throw new NotFoundException(
+        `Employee with id "${employeeId}" does not exists`,
+      );
+    }
+
+    return employee;
   }
 }
