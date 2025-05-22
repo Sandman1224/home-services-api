@@ -21,6 +21,10 @@ import { ValidationUpdateError } from './interfaces/validations';
 export class HouseServicesService {
   private readonly logger = new Logger('InvoiceService');
   private readonly ACTIVE_STATUS = 1;
+  private readonly INVOICE_STATUS = {
+    active: 1,
+    deleted: 0,
+  };
 
   constructor(
     private readonly employeesService: EmployeesService,
@@ -371,5 +375,32 @@ export class HouseServicesService {
     throw new InternalServerErrorException(
       'Unexpected error, check server logs',
     );
+  }
+
+  async deleteInvoiceById(invoiceId: string) {
+    // 1- Buscar los datos del recibo
+    const invoiceStored = await this.findInvoiceById(invoiceId);
+    const existsInvoiceStored = !!invoiceStored;
+    if (!existsInvoiceStored) {
+      throw new NotFoundException(
+        `Invoice with id "${invoiceId}" could not be found`,
+      );
+    }
+
+    // 2- Eliminar los datos del recibo
+    invoiceStored.status = this.INVOICE_STATUS.deleted;
+    await this.invoiceRepository.save(invoiceStored);
+
+    // 3- Eliminar conceptos adicionales
+    if (
+      Array.isArray(invoiceStored.additionals) &&
+      invoiceStored.additionals.length > 0
+    ) {
+      await this.deleteAdditionalsConceptsOfAnInvoice(
+        invoiceStored.additionals,
+      );
+    }
+
+    return { deletedInvoiceId: invoiceId };
   }
 }

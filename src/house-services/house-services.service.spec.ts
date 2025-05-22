@@ -212,4 +212,24 @@ describe('houseService', () => {
       ).resolves.toBeTruthy();
     });
   });
+
+  describe('Delete invoice by id', () => {
+    it('Invoice id provided does not exists', async () => {
+      const invoiceId = 'abc123';
+
+      await expect(houseService.deleteInvoiceById(invoiceId)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('Delete invoice by id', async () => {
+      const invoiceId = '019fc0ed-2b97-4340-a16b-3f7189908d21';
+
+      await expect(
+        houseService.deleteInvoiceById(invoiceId),
+      ).resolves.toMatchObject({
+        deletedInvoiceId: invoiceId,
+      });
+    });
+  });
 });

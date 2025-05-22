@@ -1,6 +1,6 @@
 import {
   Body,
-  Controller,
+  Controller, Delete,
   Get,
   Param,
   Patch,
@@ -37,5 +37,10 @@ export class HouseServicesController {
     @Body() updatedData: UpdateInvoiceDto,
   ) {
     return this.houseServicesService.updateInvoiceById(id, updatedData);
+  }
+
+  @Delete(':id')
+  deleteInvoiceById(@Param('id') id: string) {
+    return this.houseServicesService.deleteInvoiceById(id);
   }
 }
