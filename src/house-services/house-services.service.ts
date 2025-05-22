@@ -31,12 +31,13 @@ export class HouseServicesService {
   ) {}
 
   async findInvoicesByYear(paginationDto: PaginationDto) {
-    const { limit = 20, offset = 0, year } = paginationDto;
+    const { limit = 20, offset = 0, year, employeeId } = paginationDto;
     const ACTIVE_STATUS = 1;
 
     const [data, total] = await this.invoiceRepository.findAndCount({
       where: {
         year,
+        employeeId,
         status: ACTIVE_STATUS,
       },
       take: limit,
